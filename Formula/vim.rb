@@ -21,6 +21,7 @@ class Vim < Formula
   LANGUAGES_DEFAULT  = %w[python].freeze
 
   option "with-python@2", "Build vim with python@2 instead of python[3] support"
+  option "with-system-python", "Build vim with system python for python support"
   LANGUAGES_OPTIONAL.each do |language|
     option "with-#{language}", "Build vim with #{language} support"
   end
@@ -33,7 +34,7 @@ class Vim < Formula
   depends_on "perl"
   depends_on "ruby"
   depends_on :x11 if build.with? "client-server"
-  depends_on "python" => :recommended if build.without? "python@2"
+  depends_on "python" => :recommended if build.without?("python@2") && build.without?("system-python")
   depends_on "gettext" => :optional
   depends_on "lua" => :optional
   depends_on "luajit" => :optional
@@ -43,7 +44,7 @@ class Vim < Formula
     :because => "vim and ex-vi both install bin/ex and bin/view"
 
   def install
-    ENV.prepend_path "PATH", Formula["python"].opt_libexec/"bin"
+    ENV.prepend_path "PATH", Formula["python"].opt_libexec/"bin" if build.without? "system-python"
 
     # https://github.com/Homebrew/homebrew-core/pull/1046
     ENV.delete("SDKROOT")
@@ -58,6 +59,10 @@ class Vim < Formula
       if build.with? language
         opts << "--enable-#{feature.fetch(language, language)}interp"
       end
+    end
+
+    if build.with? "system-python"
+      opts << "--enable-pythoninterp"
     end
 
     if opts.include?("--enable-pythoninterp") && opts.include?("--enable-python3interp")
@@ -121,7 +126,7 @@ class Vim < Formula
   end
 
   test do
-    if build.with? "python@2"
+    if build.with?("python@2") || build.with?("system-python")
       (testpath/"commands.vim").write <<~EOS
         :python import vim; vim.current.buffer[0] = 'hello world'
         :wq
